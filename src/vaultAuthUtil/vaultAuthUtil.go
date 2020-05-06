@@ -14,10 +14,9 @@ import (
 	"time"
 )
 
-
 type awsKeys struct {
-	access_key   string      `json:"access_key"`
-	secret_key   string      `json:"secret_key"`
+	Access_key string `json:"access_key"`
+	Secret_key string `json:"secret_key"`
 }
 
 func main() {
@@ -29,39 +28,43 @@ func main() {
 	}
 
 	var jsonData map[string]interface{}
-	if err := json.Unmarshal(responseData, &jsonData); err != nil{
+	if err := json.Unmarshal(responseData, &jsonData); err != nil {
 		fmt.Println(err)
 		os.Exit(1)
 	}
-
-	var accessKey string  = fmt.Sprintf("%v", jsonData["data"].(map[string]interface{})["access_key"])
-	var secretKey string = fmt.Sprintf("%v", jsonData["data"].(map[string]interface{})["secret_key"])
-	fmt.Println("Calling makeAwsCall")
+	var accessKey = fmt.Sprintf("%v", jsonData["data"].(map[string]interface{})["access_key"])
+	var secretKey = fmt.Sprintf("%v", jsonData["data"].(map[string]interface{})["secret_key"])
 	if makeAwsCall(accessKey, secretKey) == true {
-
+		formatJson(accessKey, secretKey)
 	}
 
 }
 
 func formatJson(accessKey string, secretKey string) {
-	keys := &awsKeys{
-		access_key:   accessKey,
-		secret_key: secretKey}
-	jsonKeys, _ := json.Marshal(keys)
-	fmt.Println(jsonKeys)
+
+	keys := awsKeys{
+		Access_key: fmt.Sprintf("%s", accessKey),
+		Secret_key: fmt.Sprintf("%s", secretKey)}
+
+	prettyJSON, err := json.Marshal(keys)
+	if err != nil {
+		os.Exit(1)
+	}
+	fmt.Printf("%s\n", string(prettyJSON))
+
 }
 
-func makeAwsCall( accessKey string, secretKey string ) bool {
+func makeAwsCall(accessKey string, secretKey string) bool {
 
 	sess, err := session.NewSession(&aws.Config{
 		Region:      aws.String("us-east-1"),
-		Credentials: credentials.NewStaticCredentials(accessKey, secretKey,""),
+		Credentials: credentials.NewStaticCredentials(accessKey, secretKey, ""),
 	})
 
 	if err != nil {
 		return false
 	}
-	if  sess == nil {
+	if sess == nil {
 		return false
 	}
 
@@ -69,17 +72,14 @@ func makeAwsCall( accessKey string, secretKey string ) bool {
 		// Create a IAM service client.
 		svc := iam.New(sess)
 		result, err := svc.ListRoles(&iam.ListRolesInput{})
-		if  err != nil {
-			fmt.Println(err.Error())
+		if err != nil {
 			time.Sleep(time.Second)
 			continue
 		}
-		if result != nil{
-			fmt.Println("Success")
+		if result != nil {
 			break
 		}
 	}
-
 
 	return true
 }
@@ -90,10 +90,11 @@ func makeApiCall(vaultEnv string) ([]byte, error) {
 	}
 	client := &http.Client{Transport: tr}
 	req, err := http.NewRequest("GET", "https://vault.rbcloudsandbox.com:8200/v1/aws-sandboxops/creds/poweruser", nil)
-	req.Header.Add("X-Vault-Token", vaultEnv)
 	if err != nil {
 		fmt.Print(err.Error())
 		os.Exit(1)
+	} else {
+		req.Header.Add("X-Vault-Token", vaultEnv)
 	}
 	resp, err := client.Do(req)
 	if err != nil {
